@@ -1,0 +1,331 @@
+{% extends 'base.html' %}
+{% block title %}Equipment — VillageConnect{% endblock %}
+{% block content %}
+<div class="fade-in-up">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1"><i class="bi bi-tools text-accent me-2"></i>Farm & Panchayat Equipment</h4>
+            <p class="text-muted small mb-0">Rent farm machinery from Panchayat Admin and fellow farmers, or list your own equipment</p>
+        </div>
+        <button class="btn btn-vc" data-bs-toggle="modal" data-bs-target="#addEquipModal"><i class="bi bi-plus-lg me-1"></i> Add Equipment</button>
+    </div>
+
+    <ul class="nav nav-pills mb-4 gap-2">
+        <li class="nav-item"><a class="nav-link active" href="#" onclick="loadAvailable(this)"><i class="bi bi-check2-circle me-1"></i>Available Equipment</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="loadAll(this)"><i class="bi bi-grid me-1"></i>All Equipment</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="loadMyBookings(this)"><i class="bi bi-journal-bookmark me-1"></i>My Bookings</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="loadOwnerLog(this)"><i class="bi bi-list-check me-1"></i>Owner Log</a></li>
+    </ul>
+
+    <div id="equipment-content"><div class="vc-loading"><div class="vc-spinner"></div></div></div>
+</div>
+
+<!-- Add Equipment Modal -->
+<div class="modal fade" id="addEquipModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background:var(--vc-bg-card);border-color:var(--vc-border);">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-plus-circle text-accent me-2"></i>Add Equipment for Rent</h5>
+                <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3"><label class="form-label">Equipment Name</label><input class="form-control vc-form-control" id="eqName" placeholder="e.g. Mahindra Tractor / Harvester"></div>
+                <div class="mb-3"><label class="form-label">Description</label><textarea class="form-control vc-form-control" id="eqDesc" rows="2" placeholder="e.g. 50 HP with rotavator attachment"></textarea></div>
+                <div class="mb-3"><label class="form-label">Price per Hour (₹)</label><input type="number" class="form-control vc-form-control" id="eqPrice" step="0.01" placeholder="e.g. 500"></div>
+                <div class="mb-3"><label class="form-label">Photo (optional)</label><input type="file" class="form-control vc-form-control" id="eqPhoto" accept="image/*"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-vc" onclick="addEquipment()"><i class="bi bi-check-lg me-1"></i> Add Equipment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Book Modal -->
+<div class="modal fade" id="bookModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+        <div class="modal-content" style="background:var(--vc-bg-card);border-color:var(--vc-border);">
+            <div class="modal-header border-secondary">
+                <h6 class="modal-title"><i class="bi bi-calendar-check text-accent me-2"></i>Book Equipment</h6>
+                <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="bookEqId">
+                <input type="hidden" id="bookEqRate">
+                
+                <div class="p-3 rounded bg-dark border border-secondary mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-bold text-white fs-6" id="bookEqName">Equipment</span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle" id="bookEqRateBadge">₹0/hr</span>
+                    </div>
+                    <div class="small text-muted" id="bookEqOwnerNote"></div>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small text-muted">Rental Hours</label>
+                        <input type="number" class="form-control vc-form-control" id="bookHours" min="0" value="1" oninput="updateCostPreview()">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small text-muted">Rental Minutes</label>
+                        <input type="number" class="form-control vc-form-control" id="bookMinutes" min="0" max="59" value="0" oninput="updateCostPreview()">
+                    </div>
+                </div>
+
+                <div class="p-2 rounded bg-black border border-secondary text-center">
+                    <span class="small text-muted d-block">Estimated Total Rent</span>
+                    <span class="fs-4 fw-bold text-accent" id="bookTotalCostPreview">₹0.00</span>
+                    <div class="small text-muted mt-1" id="bookBudgetHint"></div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-vc btn-sm px-3" onclick="bookEquipment()"><i class="bi bi-check-lg me-1"></i> Confirm & Book</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const user = Auth.getUser();
+let currentEquipments = [];
+
+document.addEventListener('DOMContentLoaded', () => loadAvailable(document.querySelector('.nav-link.active')));
+
+function setTab(el) { document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active')); el.classList.add('active'); }
+
+async function loadAvailable(el) {
+    if (el) setTab(el);
+    try {
+        const url = (user && user.villageId) ? `/api/agritech/equipments/village/${user.villageId}` : '/api/agritech/equipments/village/0';
+        const r = await apiFetch(url);
+        currentEquipments = await r.json();
+        renderEquipments(currentEquipments);
+    } catch {}
+}
+
+async function loadAll(el) {
+    if (el) setTab(el);
+    try {
+        const url = (user && user.villageId) ? `/api/agritech/equipments/village/${user.villageId}/all` : '/api/agritech/equipments/village/0/all';
+        const r = await apiFetch(url);
+        currentEquipments = await r.json();
+        renderEquipments(currentEquipments);
+    } catch {}
+}
+
+async function loadMyBookings(el) { if (el) setTab(el); try { const r = await apiFetch('/api/agritech/bookings/my'); renderBookings(await r.json()); } catch {} }
+async function loadOwnerLog(el) { if (el) setTab(el); try { const r = await apiFetch('/api/agritech/bookings/owner'); renderBookings(await r.json()); } catch {} }
+
+function renderEquipments(data) {
+    const c = document.getElementById('equipment-content');
+    if (!data || !data.length) {
+        c.innerHTML = '<div class="vc-empty"><i class="bi bi-tools fs-1 text-muted mb-2"></i><h6>No equipment available right now</h6><p class="text-muted small">Panchayat admin or farmers can list equipment for rent.</p></div>';
+        return;
+    }
+
+    c.innerHTML = '<div class="row g-3">' + data.map(e => {
+        // Multi-attribute check to verify if the logged-in user is the owner
+        const isOwner = user && (
+            (e.ownerId && Number(e.ownerId) === Number(user.userId)) ||
+            (e.ownerPhone && user.phone && e.ownerPhone === user.phone) ||
+            (user.name && e.ownerName === user.name)
+        );
+
+        const isPanchayat = e.isPanchayat || (e.ownerRole === 'PANCHAYAT_ADMIN');
+
+        return `
+        <div class="col-md-4 col-sm-6">
+            <div class="vc-card h-100 d-flex flex-column justify-content-between ${isOwner ? 'border-primary border-opacity-50' : (isPanchayat ? 'border-success border-opacity-50' : '')}">
+                <div>
+                    ${e.photoUrl ? `<img src="${e.photoUrl}" class="rounded mb-3 w-100" style="height:160px;object-fit:cover;">` : ''}
+                    
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                        <h6 class="fw-bold mb-0 text-light fs-6">${e.name}</h6>
+                        <div>
+                            ${isPanchayat ? '<span class="badge bg-success text-white border border-success-subtle small"><i class="bi bi-bank2 me-1"></i>Panchayat</span>' : '<span class="badge bg-secondary text-light small"><i class="bi bi-person me-1"></i>Farmer</span>'}
+                            ${isOwner ? '<span class="badge bg-primary text-white small ms-1">You</span>' : ''}
+                        </div>
+                    </div>
+
+                    <p class="small text-muted mb-2">${e.description || 'No description provided.'}</p>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded bg-dark border border-secondary border-opacity-25">
+                        <div>
+                            <span class="small text-muted d-block" style="font-size:0.75rem;">RENTAL RATE</span>
+                            <span class="fw-bold text-accent fs-6">₹${Number(e.pricePerHour).toLocaleString('en-IN')}/hr</span>
+                        </div>
+                        <span class="badge ${e.available ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary border border-secondary-subtle'}">
+                            ${e.available ? '<i class="bi bi-check-circle me-1"></i>Available' : '<i class="bi bi-clock-history me-1"></i>Booked'}
+                        </span>
+                    </div>
+
+                    <div class="small text-muted mb-2">
+                        <i class="bi bi-person-circle me-1 text-secondary"></i>Owner: <strong class="text-white">${e.ownerName}</strong> 
+                        ${isPanchayat ? '<span class="badge bg-info-subtle text-info border border-info-subtle py-0 ms-1">Panchayat Admin</span>' : ''}
+                        ${isOwner ? '<span class="text-primary fw-semibold ms-1">(Your Listing)</span>' : ` · ${e.ownerPhone}`}
+                    </div>
+
+                    ${isPanchayat ? `
+                    <div class="small text-success mb-2 d-flex align-items-center" style="font-size:0.78rem;">
+                        <i class="bi bi-shield-check me-1"></i>Rent automatically credits into Panchayat Budget
+                    </div>
+                    ` : ''}
+                </div>
+
+                <div class="pt-2 border-top border-secondary border-opacity-25">
+                    ${isOwner ? `
+                        <button class="btn btn-sm ${e.available ? 'btn-outline-warning' : 'btn-outline-success'} w-100 py-1" onclick="toggleAvail(${e.id})">
+                            <i class="bi ${e.available ? 'bi-pause-circle' : 'bi-play-circle'} me-1"></i>
+                            ${e.available ? 'Mark Unavailable' : 'Mark Available'}
+                        </button>
+                    ` : (
+                        e.available ? `
+                            <button class="btn btn-vc btn-sm w-100 py-1 fw-semibold" onclick="showBookModal(${e.id})">
+                                <i class="bi bi-calendar-plus me-1"></i>Book Now
+                            </button>
+                        ` : `
+                            <button class="btn btn-sm btn-secondary w-100 py-1 opacity-75" disabled>
+                                <i class="bi bi-clock-history me-1"></i>Currently Booked
+                            </button>
+                        `
+                    )}
+                </div>
+            </div>
+        </div>
+        `;
+    }).join('') + '</div>';
+}
+
+function renderBookings(data) {
+    const c = document.getElementById('equipment-content');
+    if (!data || !data.length) { c.innerHTML = '<div class="vc-empty"><i class="bi bi-calendar-check fs-1 text-muted mb-2"></i><p>No bookings recorded yet</p></div>'; return; }
+    c.innerHTML = `<div class="table-responsive"><table class="table vc-table align-middle"><thead><tr><th>Equipment</th><th>Renter</th><th>Duration</th><th>Total Cost</th><th>Status</th><th>Booked Date</th></tr></thead><tbody>` +
+        data.map(b => `<tr>
+            <td class="fw-semibold text-white">${b.equipmentName}</td>
+            <td>${b.renterName || 'N/A'} <span class="small text-muted d-block">${b.renterPhone || ''}</span></td>
+            <td>${b.rentalHours}h ${b.rentalMinutes}m</td>
+            <td class="text-accent fw-bold">₹${Number(b.totalCost).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+            <td>${statusBadge(b.status)}</td>
+            <td class="small text-muted">${formatDate(b.bookedAt)}</td>
+        </tr>`).join('') +
+        `</tbody></table></div>`;
+}
+
+function showBookModal(id) {
+    const eq = currentEquipments.find(e => e.id === id);
+    if (!eq) return;
+
+    document.getElementById('bookEqId').value = eq.id;
+    document.getElementById('bookEqRate').value = eq.pricePerHour;
+    document.getElementById('bookEqName').textContent = eq.name;
+    document.getElementById('bookEqRateBadge').textContent = `₹${eq.pricePerHour}/hr`;
+
+    const isPanchayat = eq.isPanchayat || (eq.ownerRole === 'PANCHAYAT_ADMIN');
+    const ownerNote = document.getElementById('bookEqOwnerNote');
+    const budgetHint = document.getElementById('bookBudgetHint');
+
+    if (isPanchayat) {
+        ownerNote.innerHTML = `<i class="bi bi-bank2 text-success me-1"></i>Owner: <strong>${eq.ownerName}</strong> (Panchayat Admin)`;
+        budgetHint.innerHTML = `<i class="bi bi-check-circle text-success me-1"></i>This amount will be added to Gram Panchayat Budget`;
+    } else {
+        ownerNote.innerHTML = `<i class="bi bi-person text-secondary me-1"></i>Owner: <strong>${eq.ownerName}</strong> (${eq.ownerPhone})`;
+        budgetHint.innerHTML = `<i class="bi bi-info-circle text-secondary me-1"></i>Paid to equipment owner`;
+    }
+
+    document.getElementById('bookHours').value = '1';
+    document.getElementById('bookMinutes').value = '0';
+    updateCostPreview();
+
+    new bootstrap.Modal(document.getElementById('bookModal')).show();
+}
+
+function updateCostPreview() {
+    const rate = Number(document.getElementById('bookEqRate').value || 0);
+    const hours = Number(document.getElementById('bookHours').value || 0);
+    const minutes = Number(document.getElementById('bookMinutes').value || 0);
+    const total = (hours * rate) + ((minutes / 60) * rate);
+    document.getElementById('bookTotalCostPreview').textContent = `₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+}
+
+async function bookEquipment() {
+    const id = document.getElementById('bookEqId').value;
+    const hours = parseInt(document.getElementById('bookHours').value || 0);
+    const minutes = parseInt(document.getElementById('bookMinutes').value || 0);
+
+    if (hours <= 0 && minutes <= 0) {
+        showToast('Please enter valid rental duration (at least 1 minute)', 'warning');
+        return;
+    }
+
+    const body = { hours, minutes };
+    try {
+        const r = await apiFetch(`/api/agritech/equipments/${id}/book/`, { method: 'POST', body: JSON.stringify(body) });
+        if (r.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('bookModal')).hide();
+            showToast('Equipment booked successfully! Notification sent.', 'success');
+            loadAvailable(document.querySelector('.nav-link.active'));
+        } else {
+            const d = await r.json();
+            showToast(d.error || 'Failed to book equipment', 'danger');
+        }
+    } catch {
+        showToast('Server error while booking equipment', 'danger');
+    }
+}
+
+async function toggleAvail(id) {
+    try {
+        const r = await apiFetch(`/api/agritech/equipments/${id}/toggle-availability/`, { method: 'PUT' });
+        if (r.ok) {
+            showToast('Availability status updated!');
+            loadAvailable(document.querySelector('.nav-link.active'));
+        } else {
+            const d = await r.json();
+            showToast(d.error || 'Failed to update', 'danger');
+        }
+    } catch {
+        showToast('Server error', 'danger');
+    }
+}
+
+async function addEquipment() {
+    const name = document.getElementById('eqName').value.trim();
+    const description = document.getElementById('eqDesc').value.trim();
+    const pricePerHour = document.getElementById('eqPrice').value.trim();
+    const photo = document.getElementById('eqPhoto').files[0];
+
+    if (!name || !pricePerHour || Number(pricePerHour) <= 0) {
+        showToast('Please enter equipment name and valid hourly price', 'warning');
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append('name', name);
+    fd.append('description', description);
+    fd.append('pricePerHour', pricePerHour);
+    if (photo) fd.append('photo', photo);
+
+    try {
+        const r = await apiFetch('/api/agritech/equipments/', { method: 'POST', body: fd });
+        if (r.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('addEquipModal')).hide();
+            showToast('Equipment listed successfully!', 'success');
+            document.getElementById('eqName').value = '';
+            document.getElementById('eqDesc').value = '';
+            document.getElementById('eqPrice').value = '';
+            document.getElementById('eqPhoto').value = '';
+            loadAvailable(document.querySelector('.nav-link.active'));
+        } else {
+            const d = await r.json();
+            showToast(d.error || 'Failed to add equipment', 'danger');
+        }
+    } catch {
+        showToast('Server error adding equipment', 'danger');
+    }
+}
+</script>
+{% endblock %}

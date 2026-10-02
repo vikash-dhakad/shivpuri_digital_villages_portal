@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Notifications — VillageConnect{% endblock %}
+{% block content %}
+<div class="fade-in-up">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div><h4 class="fw-bold mb-1">Notifications</h4><p class="text-muted small mb-0">All your notifications</p></div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-light" onclick="markAllRead()"><i class="bi bi-check-all me-1"></i>Mark All Read</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="clearAll()"><i class="bi bi-trash me-1"></i>Clear All</button>
+        </div>
+    </div>
+    <div id="notif-list"><div class="vc-loading"><div class="vc-spinner"></div></div></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', loadNotifications);
+
+async function loadNotifications() {
+    try {
+        const r = await apiFetch('/api/notifications/');
+        const data = await r.json();
+        const c = document.getElementById('notif-list');
+        if (!data.length) { c.innerHTML = '<div class="vc-empty"><i class="bi bi-bell-slash"></i><p>No notifications</p></div>'; return; }
+        c.innerHTML = data.map(n => `
+            <div class="vc-card mb-2 ${!n.read ? 'border-start border-3 border-primary' : ''}" style="padding: 1rem 1.25rem;">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="fw-semibold">${n.title}</div>
+                        <div class="small text-muted">${n.message}</div>
+                        <div class="small text-muted mt-1">${formatDate(n.createdAt)}</div>
+                    </div>
+                    <div class="d-flex gap-1">
+                        ${!n.read ? `<button class="btn btn-sm btn-outline-light" onclick="markRead(${n.id})" title="Mark read"><i class="bi bi-check"></i></button>` : ''}
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteNotif(${n.id})" title="Delete"><i class="bi bi-x"></i></button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch {}
+}
+
+async function markRead(id) { await apiFetch(`/api/notifications/${id}/read`, { method: 'PUT' }); loadNotifications(); fetchNotificationCount(); }
+async function markAllRead() { await apiFetch('/api/notifications/read-all', { method: 'PUT' }); loadNotifications(); fetchNotificationCount(); }
+async function deleteNotif(id) { await apiFetch(`/api/notifications/${id}`, { method: 'DELETE' }); loadNotifications(); fetchNotificationCount(); }
+async function clearAll() { await apiFetch('/api/notifications/clear', { method: 'DELETE' }); loadNotifications(); fetchNotificationCount(); }
+</script>
+{% endblock %}

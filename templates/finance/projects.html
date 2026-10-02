@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+{% block title %}Projects — VillageConnect{% endblock %}
+{% block content %}
+<div class="fade-in-up">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1"><i class="bi bi-kanban text-accent me-2"></i>Village Development Projects</h4>
+            <p class="text-muted small mb-0">Manage village public works, project expenditures (kharcha), and progress tracking</p>
+        </div>
+        <button class="btn btn-vc admin-only" onclick="openAddProjectModal()"><i class="bi bi-plus-lg me-1"></i> Add New Project</button>
+    </div>
+
+    <div class="card vc-card mb-4">
+        <div class="card-body py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-info-circle text-accent"></i>
+                <span class="small text-muted">Any expenditure (kharcha) recorded on a project is automatically deducted from the Gram Panchayat Budget.</span>
+            </div>
+            <a href="/budget/" class="btn btn-outline-secondary btn-sm"><i class="bi bi-wallet2 me-1"></i> View Panchayat Budget</a>
+        </div>
+    </div>
+
+    <div id="projects-list"><div class="vc-loading"><div class="vc-spinner"></div></div></div>
+</div>
+
+<!-- Modal: Add Project -->
+<div class="modal fade" id="projectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background:var(--vc-bg-card);border-color:var(--vc-border);">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-plus-circle text-accent me-2"></i>Add Project</h5>
+                <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Project Title</label>
+                    <input class="form-control vc-form-control" id="pTitle" placeholder="e.g. Solar Street Light Installation">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control vc-form-control" id="pDesc" rows="2" placeholder="Brief project details..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Panchayat Budget (Fiscal Year)</label>
+                    <select class="form-select vc-form-control" id="pBudgetId">
+                        <option value="">Loading village budgets...</option>
+                    </select>
+                    <div class="form-text text-muted" id="budgetBalanceHint">Select the budget allocation for this project.</div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Allocated Budget (₹)</label>
+                        <input type="number" class="form-control vc-form-control" id="pAmount" step="0.01" placeholder="e.g. 50000">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Initial Kharcha / Spent (₹)</label>
+                        <input type="number" class="form-control vc-form-control" id="pSpent" step="0.01" placeholder="0.00" value="0">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-vc" onclick="addProject()"><i class="bi bi-check-lg me-1"></i> Create Project</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Update Project Status & Kharcha -->
+<div class="modal fade" id="updateProjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background:var(--vc-bg-card);border-color:var(--vc-border);">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-pencil-square text-accent me-2"></i>Update Project & Kharcha</h5>
+                <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="upProjectId">
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Project</label>
+                    <h6 id="upProjectTitle" class="fw-bold text-white mb-0"></h6>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <div class="p-2 rounded bg-dark border border-secondary">
+                            <span class="small text-muted d-block">Allocated Budget</span>
+                            <span id="upAllocated" class="fw-semibold text-primary"></span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded bg-dark border border-secondary">
+                            <span class="small text-muted d-block">Current Spent</span>
+                            <span id="upCurrentSpent" class="fw-semibold text-warning"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Project Status</label>
+                    <select class="form-select vc-form-control" id="upStatus">
+                        <option value="PLANNED">Planned (योजना बनाई गई)</option>
+                        <option value="ONGOING">Ongoing (कार्य प्रगति पर)</option>
+                        <option value="COMPLETED">Completed (कार्य पूर्ण)</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold text-accent"><i class="bi bi-cash-coin me-1"></i>Total Kharcha / Spent Amount (₹)</label>
+                    <input type="number" class="form-control vc-form-control form-control-lg" id="upSpentAmount" step="0.01" placeholder="Enter total spent amount">
+                    <div class="form-text text-danger mt-1">
+                        <i class="bi bi-dash-circle me-1"></i>Updating this amount will deduct from or update the Panchayat Budget balance.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-vc" onclick="saveProjectUpdate()"><i class="bi bi-save me-1"></i> Save & Update Budget</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const user = Auth.getUser();
+let allProjects = [];
+
+document.addEventListener('DOMContentLoaded', loadProjects);
+
+async function loadProjects() {
+    try {
+        const r = await apiFetch(`/api/finance/projects/village/${user.villageId}`);
+        const data = await r.json();
+        allProjects = data || [];
+        const c = document.getElementById('projects-list');
+        if (!data || !data.length) {
+            c.innerHTML = `
+            <div class="vc-empty">
+                <i class="bi bi-kanban fs-1 text-muted mb-2"></i>
+                <h6>No Development Projects Found</h6>
+                <p class="text-muted small">${Auth.isAdmin() ? 'Add a new project to allocate funds and record village development kharcha.' : 'Abhi koi development project nahi hai. Jab Panchayat Admin project add karega, yahan dikhega.'}</p>
+                ${Auth.isAdmin() ? '<button class="btn btn-vc btn-sm" onclick="openAddProjectModal()"><i class="bi bi-plus-lg me-1"></i> Add Project</button>' : ''}
+            </div>`;
+            return;
+        }
+
+        c.innerHTML = `
+        <div class="table-responsive">
+            <table class="table vc-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Project Title & Details</th>
+                        <th>Fiscal Year</th>
+                        <th>Status</th>
+                        <th>Allocated Budget</th>
+                        <th>Kharcha (Spent)</th>
+                        <th>Remaining</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                ${data.map(p => {
+                    const allocated = Number(p.allocatedBudget || 0);
+                    const spent = Number(p.spentAmount || 0);
+                    const balance = Math.max(0, allocated - spent);
+                    return `<tr>
+                        <td>
+                            <div class="fw-semibold text-white">${p.title}</div>
+                            <div class="small text-muted">${(p.description || '').substring(0, 70)}</div>
+                        </td>
+                        <td><span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">${p.fiscalYear || 'N/A'}</span></td>
+                        <td>${statusBadge(p.status)}</td>
+                        <td><span class="fw-semibold text-primary">₹${allocated.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span></td>
+                        <td><span class="fw-semibold text-warning">₹${spent.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span></td>
+                        <td><span class="fw-semibold ${balance > 0 ? 'text-success' : 'text-muted'}">₹${balance.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span></td>
+                        <td class="text-end">
+                            ${Auth.isAdmin() ? `
+                            <button class="btn btn-sm btn-vc py-1 px-2" onclick="openUpdateModal(${p.id})">
+                                <i class="bi bi-pencil-square me-1"></i> Update & Kharcha
+                            </button>
+                            ` : ''}
+                        </td>
+                    </tr>`;
+                }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+    } catch (e) {
+        document.getElementById('projects-list').innerHTML = '<div class="vc-empty"><p class="text-danger">Error loading projects.</p></div>';
+    }
+}
+
+async function openAddProjectModal() {
+    const select = document.getElementById('pBudgetId');
+    select.innerHTML = '<option value="">Loading village budgets...</option>';
+    try {
+        const r = await apiFetch(`/api/finance/budget/village/${user.villageId}?all=true`);
+        if (r.ok) {
+            const budgets = await r.json();
+            if (budgets && budgets.length > 0) {
+                select.innerHTML = budgets.map(b => 
+                    `<option value="${b.id}" data-unallocated="${b.unallocatedAmount || b.remainingAmount}">FY ${b.fiscalYear} (Available: ₹${Number(b.remainingAmount).toLocaleString('en-IN')})</option>`
+                ).join('');
+            } else {
+                select.innerHTML = '<option value="">No budget allocated yet - create budget first</option>';
+            }
+        }
+    } catch (e) {
+        select.innerHTML = '<option value="">Error loading budgets</option>';
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('projectModal'));
+    modal.show();
+}
+
+async function addProject() {
+    const title = document.getElementById('pTitle').value.trim();
+    const description = document.getElementById('pDesc').value.trim();
+    const budgetId = document.getElementById('pBudgetId').value;
+    const allocatedBudget = document.getElementById('pAmount').value;
+    const spentAmount = document.getElementById('pSpent').value || 0;
+
+    if (!title) {
+        showToast('Please enter project title', 'warning');
+        return;
+    }
+    if (!budgetId) {
+        showToast('Please select a valid budget', 'warning');
+        return;
+    }
+    if (!allocatedBudget || Number(allocatedBudget) <= 0) {
+        showToast('Please enter a valid allocated amount', 'warning');
+        return;
+    }
+
+    const body = { title, description, budgetId, allocatedBudget, spentAmount };
+    try {
+        const r = await apiFetch('/api/finance/projects/', { method: 'POST', body: JSON.stringify(body) });
+        if (r.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('projectModal')).hide();
+            showToast('Project created successfully! Budget updated.', 'success');
+            // Clear inputs
+            document.getElementById('pTitle').value = '';
+            document.getElementById('pDesc').value = '';
+            document.getElementById('pAmount').value = '';
+            document.getElementById('pSpent').value = '0';
+            loadProjects();
+        } else {
+            const d = await r.json();
+            showToast(d.error || 'Failed to create project', 'danger');
+        }
+    } catch {
+        showToast('Server error creating project', 'danger');
+    }
+}
+
+function openUpdateModal(projectId) {
+    const project = allProjects.find(p => p.id === projectId);
+    if (!project) return;
+
+    document.getElementById('upProjectId').value = project.id;
+    document.getElementById('upProjectTitle').textContent = project.title;
+    document.getElementById('upAllocated').textContent = `₹${Number(project.allocatedBudget || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    document.getElementById('upCurrentSpent').textContent = `₹${Number(project.spentAmount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    document.getElementById('upStatus').value = project.status;
+    document.getElementById('upSpentAmount').value = project.spentAmount || 0;
+
+    const modal = new bootstrap.Modal(document.getElementById('updateProjectModal'));
+    modal.show();
+}
+
+async function saveProjectUpdate() {
+    const id = document.getElementById('upProjectId').value;
+    const status = document.getElementById('upStatus').value;
+    const spentAmount = document.getElementById('upSpentAmount').value;
+
+    if (spentAmount === '' || Number(spentAmount) < 0) {
+        showToast('Please enter a valid spent amount (kharcha)', 'warning');
+        return;
+    }
+
+    try {
+        const r = await apiFetch(`/api/finance/projects/${id}/status/`, {
+            method: 'PUT',
+            body: JSON.stringify({ status, spentAmount })
+        });
+        if (r.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('updateProjectModal')).hide();
+            showToast('Project & Budget balance updated successfully!', 'success');
+            loadProjects();
+        } else {
+            const d = await r.json();
+            showToast(d.error || 'Failed to update project', 'danger');
+        }
+    } catch {
+        showToast('Server error updating project', 'danger');
+    }
+}
+</script>
+{% endblock %}

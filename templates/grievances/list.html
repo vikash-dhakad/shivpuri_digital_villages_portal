@@ -1,0 +1,363 @@
+{% extends 'base.html' %}
+{% block title %}Grievances — VillageConnect{% endblock %}
+{% block content %}
+<div class="fade-in-up">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div><h4 class="fw-bold mb-1">Grievances</h4><p class="text-muted small mb-0">Track complaints and review resolution feedbacks</p></div>
+        <a href="/grievances/new/" class="btn btn-vc"><i class="bi bi-plus-lg me-1"></i> File Grievance</a>
+    </div>
+
+    <!-- Tabs for My Grievances / Feedbacks / Village Grievances -->
+    <ul class="nav nav-pills mb-4 gap-2" id="grievanceTabs">
+        <li class="nav-item">
+            <a class="nav-link active" id="tabMyGrievances" href="#" onclick="loadMyGrievances(this)">
+                <i class="bi bi-card-checklist me-1"></i> My Grievances
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="tabFeedbacks" href="#" onclick="loadFeedbacks(this)">
+                <i class="bi bi-chat-heart-fill text-warning me-1"></i> Feedbacks
+            </a>
+        </li>
+        <li class="nav-item admin-only">
+            <a class="nav-link" id="tabVillageGrievances" href="#" onclick="loadVillageGrievances(this)">
+                <i class="bi bi-buildings me-1"></i> Village Grievances
+            </a>
+        </li>
+    </ul>
+
+    <div id="grievances-list"><div class="vc-loading"><div class="vc-spinner"></div></div></div>
+</div>
+
+<!-- Status Update Modal -->
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content" style="background: var(--vc-bg-card); border-color: var(--vc-border);">
+            <div class="modal-header border-secondary"><h6 class="modal-title">Update Status</h6><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="statusGrievanceId">
+                <select class="form-select vc-form-select" id="newStatus">
+                    <option value="IN_PROGRESS">In Progress</option><option value="RESOLVED">Resolved</option>
+                </select>
+            </div>
+            <div class="modal-footer border-secondary"><button class="btn btn-vc" onclick="updateStatus()">Update</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- Feedback Modal -->
+<div class="modal fade" id="feedbackModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background: var(--vc-bg-card); border-color: var(--vc-border);">
+            <div class="modal-header border-secondary">
+                <h6 class="modal-title"><i class="bi bi-chat-heart text-warning me-2"></i>Grievance Resolution Feedback</h6>
+                <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="fbGrievanceId">
+                
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-muted">Shikayat (Grievance)</label>
+                    <input type="text" class="form-control vc-form-control" id="fbGrievanceTitle" readonly disabled>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold"><i class="bi bi-exclamation-diamond text-warning me-1"></i> Problem kya thi? <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control vc-form-control" id="fbProblemTitle" placeholder="Problem kya thi? (e.g. Handpump ka pani ruk gaya tha)" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold"><i class="bi bi-tools text-primary me-1"></i> Kaisa kaam hua? <span class="text-danger">*</span></label>
+                    <select class="form-select vc-form-select" id="fbWorkQuality" required>
+                        <option value="BAHUT_ACHHA">⭐⭐⭐⭐⭐ Bahut Badhiya (Excellent)</option>
+                        <option value="ACHHA" selected>⭐⭐⭐⭐ Achha Kaam Hua (Good)</option>
+                        <option value="THEEK">⭐⭐⭐ Theek-thaak (Satisfactory)</option>
+                        <option value="ASANTUSHT">⭐ Asantusht (Unsatisfactory)</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold"><i class="bi bi-star-fill text-warning me-1"></i> Overall Rating (1 - 5 Stars) <span class="text-danger">*</span></label>
+                    <select class="form-select vc-form-select" id="fbRating" required>
+                        <option value="5" selected>5 Stars — Bahut Santusht (Very Satisfied)</option>
+                        <option value="4">4 Stars — Santusht (Satisfied)</option>
+                        <option value="3">3 Stars — Samanya (Average)</option>
+                        <option value="2">2 Stars — Theek Nahi (Poor)</option>
+                        <option value="1">1 Star — Kharab (Very Poor)</option>
+                    </select>
+                </div>
+
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label small fw-semibold mb-0"><i class="bi bi-chat-left-quote me-1"></i> Feedback (50 Words Limit) <span class="text-danger">*</span></label>
+                        <span id="fbWordBadge" class="badge bg-secondary" style="font-size: 0.75rem;">0 / 50 words</span>
+                    </div>
+                    <textarea class="form-control vc-form-control" id="fbComments" rows="3" placeholder="Panchayat ke response aur resolution par apna feedback likhein (Max 50 words)..." oninput="updateWordCount()"></textarea>
+                    <div id="fbWordWarning" class="text-danger small mt-1 d-none"><i class="bi bi-exclamation-circle me-1"></i> Feedback 50 words se zyada nahi ho sakta!</div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-vc" id="fbSubmitBtn" onclick="submitFeedback()"><i class="bi bi-send me-1"></i> Submit Feedback</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => loadMyGrievances());
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function renderGrievances(data, showActions) {
+    const container = document.getElementById('grievances-list');
+    if (!data.length) { 
+        container.innerHTML = '<div class="vc-empty"><i class="bi bi-check-circle"></i><p>No grievances found</p></div>'; 
+        return; 
+    }
+    const user = Auth.getUser();
+    container.innerHTML = `<div class="table-responsive"><table class="table vc-table"><thead><tr>
+        <th>Title</th><th>Category</th><th>Status</th><th>Escalated</th><th>Date</th><th>Feedback / Actions</th>
+    </tr></thead><tbody>` + data.map(g => {
+        let actionHtml = '';
+        if (showActions && user.role === 'PANCHAYAT_ADMIN' && g.status !== 'RESOLVED') {
+            actionHtml += `<button class="btn btn-sm btn-outline-light me-1" onclick="showStatusModal(${g.id})" title="Update Status"><i class="bi bi-pencil"></i></button>`;
+        }
+        
+        // If grievance is resolved and user is owner or admin:
+        if (g.status === 'RESOLVED') {
+            if (g.hasFeedback) {
+                actionHtml += `<button class="btn btn-sm btn-outline-success me-1" onclick="showMyFeedbackDetails(${g.id})" title="View Feedback"><i class="bi bi-star-fill text-warning me-1"></i> Feedback Given (${g.feedback.rating}★)</button>`;
+            } else if (g.userId === user.userId || user.role === 'PANCHAYAT_ADMIN') {
+                actionHtml += `<button class="btn btn-sm btn-success me-1" onclick="openFeedbackModal(${g.id}, '${escapeHtml(g.title)}')"><i class="bi bi-chat-left-heart me-1"></i> Give Feedback</button>`;
+            }
+            if (g.userId === user.userId) {
+                actionHtml += `<button class="btn btn-sm btn-outline-warning" onclick="reopenGrievance(${g.id})">Reopen</button>`;
+            }
+        }
+        return `<tr>
+            <td><div class="fw-semibold">${escapeHtml(g.title)}</div><div class="small text-muted">${escapeHtml((g.description||'').substring(0,60))}...</div></td>
+            <td><span class="badge bg-secondary">${g.category}</span></td>
+            <td>${statusBadge(g.status)}</td>
+            <td>${g.escalated ? '<i class="bi bi-arrow-up-circle-fill text-danger"></i>' : '—'}</td>
+            <td class="small">${formatDate(g.createdAt)}</td>
+            <td>${actionHtml || '—'}</td>
+        </tr>`;
+    }).join('') + `</tbody></table></div>`;
+}
+
+function renderFeedbacks(feedbacks) {
+    const container = document.getElementById('grievances-list');
+    if (!feedbacks || !feedbacks.length) {
+        container.innerHTML = `
+            <div class="vc-empty text-center py-5">
+                <i class="bi bi-chat-heart display-4 text-muted mb-3 d-block"></i>
+                <h5 class="text-light">Abhi tak koi feedback darj nahi hua hai</h5>
+                <p class="text-muted">Jab gaon ke log ya kisaan resolved shikayat par feedback denge, wo yahan show honge.</p>
+            </div>`;
+        return;
+    }
+
+    let cardsHtml = '<div class="row g-3">';
+    feedbacks.forEach(f => {
+        let stars = '';
+        for (let i = 1; i <= 5; i++) {
+            stars += i <= (f.rating || 5) 
+                ? '<i class="bi bi-star-fill text-warning me-1"></i>' 
+                : '<i class="bi bi-star text-secondary me-1"></i>';
+        }
+
+        let qualityBadge = 'bg-primary-subtle text-primary border-primary';
+        if (f.work_quality === 'BAHUT_ACHHA') qualityBadge = 'bg-success-subtle text-success border-success';
+        else if (f.work_quality === 'THEEK') qualityBadge = 'bg-warning-subtle text-warning border-warning';
+        else if (f.work_quality === 'ASANTUSHT') qualityBadge = 'bg-danger-subtle text-danger border-danger';
+
+        cardsHtml += `
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 p-3" style="background: var(--vc-bg-card); border: 1px solid var(--vc-border); border-radius: 12px;">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>${stars}</div>
+                        <span class="badge border ${qualityBadge}" style="font-size: 0.75rem;">
+                            <i class="bi bi-tools me-1"></i>${escapeHtml(f.workQualityDisplay || f.work_quality)}
+                        </span>
+                    </div>
+
+                    <div class="mb-2">
+                        <div class="small text-muted mb-1"><i class="bi bi-exclamation-circle me-1"></i><strong>Problem kya thi:</strong></div>
+                        <div class="fw-bold text-light" style="font-size: 0.95rem;">${escapeHtml(f.problem_title)}</div>
+                    </div>
+
+                    <div class="mb-3 p-2 rounded" style="background: rgba(255,255,255,0.03); border-left: 3px solid var(--vc-accent, #3b82f6);">
+                        <div class="small text-muted mb-1"><i class="bi bi-chat-quote me-1"></i><strong>Citizen Feedback (Max 50 Words):</strong></div>
+                        <div class="text-light" style="font-size: 0.9rem; line-height: 1.45;">"${escapeHtml(f.comments)}"</div>
+                    </div>
+
+                    <div class="mt-auto pt-2 border-top border-secondary d-flex justify-content-between align-items-center small text-muted">
+                        <div>
+                            <i class="bi bi-person-circle text-info me-1"></i><strong>${escapeHtml(f.userName)}</strong> 
+                            <span class="badge bg-secondary-subtle text-light ms-1" style="font-size: 0.68rem;">${f.userRole}</span>
+                        </div>
+                        <div><i class="bi bi-clock me-1"></i>${formatDate(f.createdAt)}</div>
+                    </div>
+                </div>
+            </div>`;
+    });
+    cardsHtml += '</div>';
+
+    container.innerHTML = cardsHtml;
+}
+
+async function loadMyGrievances(el) {
+    document.querySelectorAll('#grievanceTabs .nav-link').forEach(l => l.classList.remove('active'));
+    (el || document.getElementById('tabMyGrievances')).classList.add('active');
+    document.getElementById('grievances-list').innerHTML = '<div class="vc-loading"><div class="vc-spinner"></div></div>';
+    try { 
+        const r = await apiFetch('/api/grievances/my'); 
+        renderGrievances(await r.json(), false); 
+    } catch {
+        document.getElementById('grievances-list').innerHTML = '<div class="text-danger text-center py-4">Failed to load grievances.</div>';
+    }
+}
+
+async function loadVillageGrievances(el) {
+    document.querySelectorAll('#grievanceTabs .nav-link').forEach(l => l.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('grievances-list').innerHTML = '<div class="vc-loading"><div class="vc-spinner"></div></div>';
+    const user = Auth.getUser();
+    try { 
+        const r = await apiFetch(`/api/grievances/village/${user.villageId}`); 
+        renderGrievances(await r.json(), true); 
+    } catch {
+        document.getElementById('grievances-list').innerHTML = '<div class="text-danger text-center py-4">Failed to load village grievances.</div>';
+    }
+}
+
+async function loadFeedbacks(el) {
+    document.querySelectorAll('#grievanceTabs .nav-link').forEach(l => l.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('grievances-list').innerHTML = '<div class="vc-loading"><div class="vc-spinner"></div></div>';
+    try {
+        const r = await apiFetch('/api/grievances/feedbacks/');
+        const data = await r.json();
+        renderFeedbacks(data);
+    } catch {
+        document.getElementById('grievances-list').innerHTML = '<div class="text-danger text-center py-4">Failed to load feedbacks.</div>';
+    }
+}
+
+function showStatusModal(id) { 
+    document.getElementById('statusGrievanceId').value = id; 
+    new bootstrap.Modal(document.getElementById('statusModal')).show(); 
+}
+
+async function updateStatus() {
+    const id = document.getElementById('statusGrievanceId').value;
+    const status = document.getElementById('newStatus').value;
+    try {
+        const r = await apiFetch(`/api/grievances/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
+        if (r.ok) { 
+            bootstrap.Modal.getInstance(document.getElementById('statusModal')).hide(); 
+            showToast('Status updated!'); 
+            loadMyGrievances(); 
+        } else { 
+            const d = await r.json(); 
+            showToast(d.error || 'Error', 'danger'); 
+        }
+    } catch { showToast('Network error', 'danger'); }
+}
+
+async function reopenGrievance(id) {
+    try {
+        const r = await apiFetch(`/api/grievances/${id}/reopen`, { method: 'PUT' });
+        if (r.ok) { showToast('Grievance reopened'); loadMyGrievances(); }
+        else { const d = await r.json(); showToast(d.error, 'danger'); }
+    } catch {}
+}
+
+function updateWordCount() {
+    const text = document.getElementById('fbComments').value;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const badge = document.getElementById('fbWordBadge');
+    const warning = document.getElementById('fbWordWarning');
+    const btn = document.getElementById('fbSubmitBtn');
+
+    badge.textContent = `${words} / 50 words`;
+
+    if (words > 50) {
+        badge.className = 'badge bg-danger';
+        warning.classList.remove('d-none');
+        btn.disabled = true;
+    } else {
+        badge.className = words > 40 ? 'badge bg-warning text-dark' : 'badge bg-secondary';
+        warning.classList.add('d-none');
+        btn.disabled = false;
+    }
+}
+
+function openFeedbackModal(grievanceId, grievanceTitle) {
+    document.getElementById('fbGrievanceId').value = grievanceId;
+    document.getElementById('fbGrievanceTitle').value = grievanceTitle;
+    document.getElementById('fbProblemTitle').value = grievanceTitle;
+    document.getElementById('fbWorkQuality').value = 'ACHHA';
+    document.getElementById('fbRating').value = '5';
+    document.getElementById('fbComments').value = '';
+    updateWordCount();
+    new bootstrap.Modal(document.getElementById('feedbackModal')).show();
+}
+
+async function submitFeedback() {
+    const id = document.getElementById('fbGrievanceId').value;
+    const problem_title = document.getElementById('fbProblemTitle').value.trim();
+    const work_quality = document.getElementById('fbWorkQuality').value;
+    const rating = document.getElementById('fbRating').value;
+    const comments = document.getElementById('fbComments').value.trim();
+
+    if (!problem_title) {
+        showToast('Kripya batayein ki problem kya thi.', 'danger');
+        return;
+    }
+    if (!comments) {
+        showToast('Kripya apna feedback comment likhein.', 'danger');
+        return;
+    }
+
+    const words = comments.split(/\s+/).length;
+    if (words > 50) {
+        showToast('Feedback 50 words se zyada nahi ho sakta.', 'danger');
+        return;
+    }
+
+    try {
+        const resp = await apiFetch(`/api/grievances/${id}/feedback/`, {
+            method: 'POST',
+            body: JSON.stringify({
+                problem_title,
+                work_quality,
+                rating,
+                comments
+            })
+        });
+
+        const data = await resp.json();
+        if (resp.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('feedbackModal')).hide();
+            showToast('Feedback successfully darj ho gaya!', 'success');
+            loadFeedbacks(document.getElementById('tabFeedbacks'));
+        } else {
+            showToast(data.error || 'Feedback save karne me error.', 'danger');
+        }
+    } catch {
+        showToast('Network error. Kripya punah prayas karein.', 'danger');
+    }
+}
+
+function showMyFeedbackDetails(grievanceId) {
+    loadFeedbacks(document.getElementById('tabFeedbacks'));
+}
+</script>
+{% endblock %}

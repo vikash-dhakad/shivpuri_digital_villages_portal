@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}File Grievance — VillageConnect{% endblock %}
+{% block content %}
+<div class="fade-in-up" style="max-width: 640px;">
+    <h4 class="fw-bold mb-1">File a Grievance</h4>
+    <p class="text-muted small mb-4">Report an issue in your village</p>
+
+    <div class="vc-card">
+        <form id="grievanceForm" onsubmit="return submitGrievance(event)">
+            <div class="mb-3"><label class="form-label">Title</label><input type="text" class="form-control vc-form-control" id="gTitle" required placeholder="Brief title"></div>
+            <div class="mb-3"><label class="form-label">Description</label><textarea class="form-control vc-form-control" id="gDesc" rows="4" required placeholder="Describe the issue in detail"></textarea></div>
+            <div class="mb-3"><label class="form-label">Category</label>
+                <select class="form-select vc-form-select" id="gCategory" required>
+                    <option value="">Select</option><option value="INFRASTRUCTURE">Infrastructure</option><option value="WATER">Water</option>
+                    <option value="ELECTRICITY">Electricity</option><option value="AGRICULTURE">Agriculture</option><option value="OTHERS">Others</option>
+                </select>
+            </div>
+            <div class="mb-4"><label class="form-label">Photo (Optional)</label><input type="file" class="form-control vc-form-control" id="gPhoto" accept="image/*"></div>
+            <div class="d-flex gap-2">
+                <a href="/grievances/" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-vc"><i class="bi bi-send me-1"></i> Submit Grievance</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function submitGrievance(e) {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append('title', document.getElementById('gTitle').value);
+    fd.append('description', document.getElementById('gDesc').value);
+    fd.append('category', document.getElementById('gCategory').value);
+    const photo = document.getElementById('gPhoto').files[0];
+    if (photo) fd.append('photo', photo);
+
+    try {
+        const r = await apiFetch('/api/grievances/', { method: 'POST', body: fd });
+        if (r.ok) { showToast('Grievance filed successfully!'); setTimeout(() => window.location.href = '/grievances/', 1000); }
+        else { const d = await r.json(); showToast(d.error || 'Error', 'danger'); }
+    } catch { showToast('Network error', 'danger'); }
+}
+</script>
+{% endblock %}

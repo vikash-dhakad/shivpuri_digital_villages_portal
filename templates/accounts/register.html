@@ -1,0 +1,175 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register — VillageConnect</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+</head>
+<body>
+<div class="auth-container">
+    <div class="auth-card fade-in-up" style="max-width: 520px;">
+        <div class="brand-logo">
+            <div class="icon-wrapper"><i class="bi bi-tree-fill"></i></div>
+            <h3 class="fw-bold mb-1">Create Account</h3>
+            <p class="text-muted small">Join VillageConnect</p>
+        </div>
+
+        <div id="reg-error" class="alert alert-danger d-none small py-2"></div>
+
+        <form id="registerForm" onsubmit="return handleRegister(event)">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-control vc-form-control" id="regName" required placeholder="Your name">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Phone Number</label>
+                    <input type="tel" class="form-control vc-form-control" id="regPhone" maxlength="10" required placeholder="10-digit number">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Email (Optional)</label>
+                    <input type="email" class="form-control vc-form-control" id="regEmail" placeholder="email@example.com">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-control vc-form-control" id="regPassword" required placeholder="Create password">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Role</label>
+                    <select class="form-select vc-form-select" id="regRole" required onchange="onRoleChange()">
+                        <option value="">Select your role</option>
+                        <option value="VILLAGER">Villager</option>
+                        <option value="FARMER">Farmer</option>
+                        <option value="PANCHAYAT_ADMIN">Panchayat Admin</option>
+                    </select>
+                </div>
+
+                <!-- Village Selection (VILLAGER/FARMER) -->
+                <div class="col-12 d-none" id="villageSelectSection">
+                    <label class="form-label">Select Village</label>
+                    <select class="form-select vc-form-select" id="regVillageId">
+                        <option value="">Loading villages...</option>
+                    </select>
+                </div>
+
+                <!-- New Village (PANCHAYAT_ADMIN) -->
+                <div id="newVillageSection" class="d-none">
+                    <hr class="border-secondary">
+                    <p class="small text-muted mb-3"><i class="bi bi-info-circle me-1"></i>Register your village details</p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Village Name</label>
+                            <input type="text" class="form-control vc-form-control" id="regVillageName" placeholder="Village name">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Block</label>
+                            <input type="text" class="form-control vc-form-control" id="regBlock" placeholder="Block">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">District</label>
+                            <input type="text" class="form-control vc-form-control" id="regDistrict" placeholder="District">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">State</label>
+                            <input type="text" class="form-control vc-form-control" id="regState" placeholder="State">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Pincode</label>
+                            <input type="text" class="form-control vc-form-control" id="regPincode" maxlength="6" placeholder="Pincode">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-vc w-100 py-2 mt-4" id="regBtn">
+                <span id="regSpinner" class="spinner-border spinner-border-sm d-none me-2"></span>
+                Create Account
+            </button>
+        </form>
+
+        <div class="text-center mt-4">
+            <span class="text-muted small">Already have an account?</span>
+            <a href="/login/" class="text-accent fw-600 text-decoration-none small ms-1">Sign In</a>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{% static 'js/auth.js' %}"></script>
+<script>
+    if (Auth.isAuthenticated()) window.location.href = '/dashboard/';
+
+    // Load villages for dropdown
+    fetch('/api/villages/').then(r => r.json()).then(villages => {
+        const sel = document.getElementById('regVillageId');
+        sel.innerHTML = '<option value="">-- Select Village --</option>';
+        villages.forEach(v => {
+            sel.innerHTML += `<option value="${v.id}">${v.name}, ${v.district}</option>`;
+        });
+    }).catch(() => {});
+
+    function onRoleChange() {
+        const role = document.getElementById('regRole').value;
+        document.getElementById('villageSelectSection').classList.toggle('d-none', role === 'PANCHAYAT_ADMIN' || !role);
+        document.getElementById('newVillageSection').classList.toggle('d-none', role !== 'PANCHAYAT_ADMIN');
+    }
+
+    async function handleRegister(e) {
+        e.preventDefault();
+        const errorEl = document.getElementById('reg-error');
+        const btn = document.getElementById('regBtn');
+        const spinner = document.getElementById('regSpinner');
+        errorEl.classList.add('d-none');
+        btn.disabled = true;
+        spinner.classList.remove('d-none');
+
+        const role = document.getElementById('regRole').value;
+        const body = {
+            name: document.getElementById('regName').value.trim(),
+            phone: document.getElementById('regPhone').value.trim(),
+            email: document.getElementById('regEmail').value.trim(),
+            password: document.getElementById('regPassword').value,
+            role: role,
+        };
+
+        if (role === 'PANCHAYAT_ADMIN') {
+            body.villageName = document.getElementById('regVillageName').value.trim();
+            body.district = document.getElementById('regDistrict').value.trim();
+            body.state = document.getElementById('regState').value.trim();
+            body.block = document.getElementById('regBlock').value.trim();
+            body.pincode = document.getElementById('regPincode').value.trim();
+        } else {
+            const vid = document.getElementById('regVillageId').value;
+            if (vid) body.villageId = parseInt(vid);
+        }
+
+        try {
+            const resp = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                Auth.saveAuth(data);
+                window.location.href = '/dashboard/';
+            } else {
+                errorEl.textContent = data.error || data.phone?.[0] || 'Registration failed';
+                errorEl.classList.remove('d-none');
+            }
+        } catch {
+            errorEl.textContent = 'Network error. Please try again.';
+            errorEl.classList.remove('d-none');
+        } finally {
+            btn.disabled = false;
+            spinner.classList.add('d-none');
+        }
+    }
+</script>
+</body>
+</html>

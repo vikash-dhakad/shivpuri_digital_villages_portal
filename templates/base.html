@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="VillageConnect — Digital Platform for Smart Village Governance">
+    <title>{% block title %}VillageConnect{% endblock %}</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/custom.css">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+{% block full_body %}
+<!-- ─── Top Navbar ─────────────────────────────────────────────── -->
+<nav class="navbar navbar-expand-lg fixed-top vc-navbar">
+    <div class="container-fluid px-4">
+        <a class="navbar-brand d-flex align-items-center gap-2" href="/dashboard/">
+            <div class="brand-icon">
+                <i class="bi bi-tree-fill"></i>
+            </div>
+            <span class="brand-text">Village<span class="text-accent">Connect</span></span>
+        </a>
+
+        <div class="d-flex align-items-center gap-3">
+            <!-- Notification Bell -->
+            <div class="position-relative" id="notif-bell-container">
+                <a href="/notifications/" class="btn btn-icon" title="Notifications">
+                    <i class="bi bi-bell-fill"></i>
+                    <span class="badge bg-danger rounded-pill position-absolute top-0 start-100 translate-middle d-none" id="notif-badge">0</span>
+                </a>
+            </div>
+
+            <!-- User Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-outline-light btn-sm dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" id="userDropdown">
+                    <i class="bi bi-person-circle"></i>
+                    <span id="user-display-name">User</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+                    <li><span class="dropdown-item-text small text-muted" id="user-role-display">Role</span></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" onclick="handleLogout()"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- ─── Sidebar + Content Layout ───────────────────────────────── -->
+<div class="d-flex" style="padding-top: 64px;">
+
+    <!-- Sidebar -->
+    <nav class="vc-sidebar" id="sidebar">
+        <div class="sidebar-menu">
+            <a href="/dashboard/" class="sidebar-link" data-page="dashboard">
+                <i class="bi bi-grid-1x2-fill"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/announcements/" class="sidebar-link" data-page="announcements">
+                <i class="bi bi-megaphone-fill"></i>
+                <span>Announcements</span>
+            </a>
+            <a href="/grievances/" class="sidebar-link" data-page="grievances">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <span>Grievances</span>
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-heading">Agriculture</div>
+            <a href="/equipment/" class="sidebar-link" data-page="equipment">
+                <i class="bi bi-tools"></i>
+                <span>Equipment</span>
+            </a>
+            <a href="/mandi-prices/" class="sidebar-link" data-page="mandi-prices">
+                <i class="bi bi-currency-rupee"></i>
+                <span>Mandi Prices</span>
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-heading">Finance</div>
+            <a href="/budget/" class="sidebar-link" data-page="budget">
+                <i class="bi bi-wallet2"></i>
+                <span>Budget</span>
+            </a>
+            <a href="/projects/" class="sidebar-link" data-page="projects">
+                <i class="bi bi-kanban-fill"></i>
+                <span>Projects</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="vc-content flex-grow-1">
+        {% block content %}{% endblock %}
+    </main>
+</div>
+{% endblock %}
+
+<!-- Bootstrap 5 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Auth & Common JS -->
+<script src="/static/js/auth.js"></script>
+<script src="/static/js/main.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

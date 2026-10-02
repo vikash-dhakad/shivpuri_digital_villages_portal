@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+{% block title %}Mandi Bhav — Live Crop Rates — VillageConnect{% endblock %}
+
+{% block content %}
+<div class="fade-in-up">
+    <!-- Page Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h4 class="fw-bold mb-1"><i class="bi bi-shop-window text-success me-2"></i>Mandi Bhav (Commodity Rates) 🌾</h4>
+            <p class="text-muted small mb-0">Select your State and District to check live APMC & Agmarknet market rates.</p>
+        </div>
+        <div>
+            <button class="btn btn-outline-success btn-sm d-flex align-items-center gap-2" id="btn-refresh" onclick="fetchMandiPrices()">
+                <i class="bi bi-arrow-clockwise" id="refresh-icon"></i>
+                <span>Refresh Rates</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter Control Panel -->
+    <div class="vc-card mb-4 p-4">
+        <div class="row g-3 align-items-end">
+            <!-- State Selection -->
+            <div class="col-md-4 col-sm-6">
+                <label for="state-select" class="form-label text-muted small fw-semibold">
+                    <i class="bi bi-geo-alt-fill text-danger me-1"></i>1. Select State:
+                </label>
+                <select id="state-select" class="form-select bg-dark border-secondary text-light">
+                    <option value="">-- Choose State --</option>
+                </select>
+            </div>
+
+            <!-- District Selection -->
+            <div class="col-md-4 col-sm-6">
+                <label for="district-select" class="form-label text-muted small fw-semibold">
+                    <i class="bi bi-building text-warning me-1"></i>2. Select District:
+                </label>
+                <select id="district-select" class="form-select bg-dark border-secondary text-light" disabled>
+                    <option value="">-- First Choose State --</option>
+                </select>
+            </div>
+
+            <!-- Action Button -->
+            <div class="col-md-4 col-sm-12">
+                <button type="button" class="btn btn-success w-100 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2" id="btn-apply" onclick="fetchMandiPrices()" disabled>
+                    <i class="bi bi-search"></i>
+                    <span>Get Mandi Rates</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Crop Search Box (Shows when district is active) -->
+        <div class="row mt-3 pt-3 border-top border-secondary border-opacity-25" id="crop-search-container">
+            <div class="col-12">
+                <label for="crop-search" class="form-label text-muted small fw-semibold">
+                    <i class="bi bi-funnel text-info me-1"></i>Search Specific Crop in Selected District:
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" id="crop-search" class="form-control bg-dark border-secondary text-light" placeholder="Search crop name (e.g. Wheat, Soybean, Mustard, Gram, Onion, Rice)..." autocomplete="off">
+                    <button class="btn btn-outline-secondary border-secondary text-muted" type="button" id="btn-clear-search" onclick="clearCropSearch()" title="Clear search">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Overview -->
+    <div class="row g-3 mb-4" id="stats-container">
+        <div class="col-sm-6 col-lg-3">
+            <div class="vc-card py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small">Crops Available</div>
+                        <div class="fs-4 fw-bold text-light" id="stat-total">-</div>
+                    </div>
+                    <div class="rounded-circle p-2 bg-success bg-opacity-10 text-success">
+                        <i class="bi bi-flower1 fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="vc-card py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small">Top Rate (₹/Qtl)</div>
+                        <div class="fs-4 fw-bold text-warning" id="stat-highest">-</div>
+                    </div>
+                    <div class="rounded-circle p-2 bg-warning bg-opacity-10 text-warning">
+                        <i class="bi bi-graph-up-arrow fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="vc-card py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small">Active Mandis</div>
+                        <div class="fs-4 fw-bold text-info" id="stat-mandis">-</div>
+                    </div>
+                    <div class="rounded-circle p-2 bg-info bg-opacity-10 text-info">
+                        <i class="bi bi-shop fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="vc-card py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small">Selected Location</div>
+                        <div class="fs-6 fw-bold text-light text-truncate" id="stat-location" style="max-width: 140px;">-</div>
+                    </div>
+                    <div class="rounded-circle p-2 bg-primary bg-opacity-10 text-primary">
+                        <i class="bi bi-geo-alt fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mandi Rates Table Card -->
+    <div class="vc-card">
+        <div id="mandi-content">
+            <div class="text-center py-5 text-muted">
+                <div class="spinner-border text-success mb-3" role="status"></div>
+                <div>Loading locations and market rates...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let locationMap = {};
+let allDistrictPrices = [];
+let currentFilterState = '';
+let currentFilterDistrict = '';
+
+// Fetch available States and Districts on page load
+async function loadLocations() {
+    try {
+        const response = await fetch('/api/agritech/mandi-locations');
+        if (!response.ok) throw new Error('Failed to load locations');
+        locationMap = await response.json();
+
+        populateStateDropdown();
+
+        // Default auto-select: Madhya Pradesh -> Shivpuri for instant rich preview
+        const defaultState = 'Madhya Pradesh';
+        const defaultDistrict = 'Shivpuri';
+
+        if (locationMap[defaultState]) {
+            const stateSelect = document.getElementById('state-select');
+            stateSelect.value = defaultState;
+            onStateChanged();
+
+            const districtSelect = document.getElementById('district-select');
+            districtSelect.value = defaultDistrict;
+            currentFilterState = defaultState;
+            currentFilterDistrict = defaultDistrict;
+            document.getElementById('btn-apply').disabled = false;
+
+            fetchMandiPrices();
+        } else {
+            // Pick first state
+            const firstState = Object.keys(locationMap)[0];
+            if (firstState) {
+                document.getElementById('state-select').value = firstState;
+                onStateChanged();
+            }
+        }
+    } catch (err) {
+        console.error('Error loading locations:', err);
+        document.getElementById('mandi-content').innerHTML = `
+            <div class="alert alert-danger m-3" role="alert">
+                <i class="bi bi-exclamation-octagon-fill me-2"></i>
+                Failed to load State & District list. Please check the backend connection.
+            </div>
+        `;
+    }
+}
+
+function populateStateDropdown() {
+    const stateSelect = document.getElementById('state-select');
+    stateSelect.innerHTML = '<option value="">-- Choose State --</option>';
+
+    const sortedStates = Object.keys(locationMap).sort();
+    sortedStates.forEach(state => {
+        const opt = document.createElement('option');
+        opt.value = state;
+        opt.textContent = state;
+        stateSelect.appendChild(opt);
+    });
+}
+
+function onStateChanged() {
+    const stateSelect = document.getElementById('state-select');
+    const districtSelect = document.getElementById('district-select');
+    const applyBtn = document.getElementById('btn-apply');
+    const selectedState = stateSelect.value;
+
+    currentFilterState = selectedState;
+    districtSelect.innerHTML = '<option value="">-- Choose District --</option>';
+
+    if (!selectedState || !locationMap[selectedState]) {
+        districtSelect.disabled = true;
+        districtSelect.innerHTML = '<option value="">-- First Choose State --</option>';
+        applyBtn.disabled = true;
+        return;
+    }
+
+    const districts = locationMap[selectedState].sort();
+    districts.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = d;
+        districtSelect.appendChild(opt);
+    });
+
+    districtSelect.disabled = false;
+    applyBtn.disabled = false;
+}
+
+function onDistrictChanged() {
+    const districtSelect = document.getElementById('district-select');
+    currentFilterDistrict = districtSelect.value;
+    if (currentFilterState && currentFilterDistrict) {
+        document.getElementById('btn-apply').disabled = false;
+        fetchMandiPrices();
+    }
+}
+
+// Fetch Mandi prices for selected State & District
+async function fetchMandiPrices() {
+    const stateSelect = document.getElementById('state-select');
+    const districtSelect = document.getElementById('district-select');
+    const state = stateSelect.value.trim();
+    const district = districtSelect.value.trim();
+
+    if (!state) {
+        alert('Please select a State first.');
+        return;
+    }
+
+    const content = document.getElementById('mandi-content');
+    const refreshIcon = document.getElementById('refresh-icon');
+    const applyBtn = document.getElementById('btn-apply');
+
+    if (refreshIcon) refreshIcon.classList.add('spin-animation');
+    if (applyBtn) applyBtn.disabled = true;
+
+    content.innerHTML = `
+        <div class="text-center py-5 text-muted">
+            <div class="spinner-border text-success mb-3" role="status"></div>
+            <div class="fw-semibold">Fetching Mandi Rates for ${district ? district + ', ' : ''}${state}...</div>
+            <div class="small text-muted mt-1">Connecting to APMC & Agmarknet Government Dataset</div>
+        </div>
+    `;
+
+    try {
+        const params = new URLSearchParams();
+        if (state) params.append('state', state);
+        if (district) params.append('district', district);
+
+        const response = await fetch(`/api/agritech/mandi-prices?${params.toString()}`);
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+
+        allDistrictPrices = await response.json();
+
+        // Update stats
+        updateStats(state, district, allDistrictPrices);
+
+        // Render table (apply any active search filter)
+        applyClientCropFilter();
+
+    } catch (err) {
+        console.error('Fetch Mandi Prices Error:', err);
+        content.innerHTML = `
+            <div class="p-4 text-center">
+                <div class="text-danger fs-1 mb-2"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <h5 class="fw-bold text-light">Unable to load Mandi rates</h5>
+                <p class="text-muted small">${err.message || 'API request failed'}</p>
+                <button class="btn btn-outline-light btn-sm mt-2" onclick="fetchMandiPrices()">
+                    <i class="bi bi-arrow-repeat me-1"></i> Try Again
+                </button>
+            </div>
+        `;
+    } finally {
+        if (refreshIcon) refreshIcon.classList.remove('spin-animation');
+        if (applyBtn) applyBtn.disabled = false;
+    }
+}
+
+function updateStats(state, district, prices) {
+    document.getElementById('stat-total').textContent = prices.length;
+
+    if (prices.length > 0) {
+        const highest = Math.max(...prices.map(p => Number(p.modalPrice || p.maxPrice || 0)));
+        document.getElementById('stat-highest').textContent = '₹' + highest.toLocaleString('en-IN');
+        const markets = new Set(prices.map(p => p.market)).size;
+        document.getElementById('stat-mandis').textContent = markets;
+    } else {
+        document.getElementById('stat-highest').textContent = '-';
+        document.getElementById('stat-mandis').textContent = '0';
+    }
+
+    const locText = district ? `${district}, ${state}` : (state || 'All');
+    document.getElementById('stat-location').textContent = locText;
+    document.getElementById('stat-location').title = locText;
+}
+
+function applyClientCropFilter() {
+    const searchInput = document.getElementById('crop-search');
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    let filtered = allDistrictPrices;
+    if (query) {
+        filtered = allDistrictPrices.filter(p =>
+            (p.commodity && p.commodity.toLowerCase().includes(query)) ||
+            (p.variety && p.variety.toLowerCase().includes(query)) ||
+            (p.market && p.market.toLowerCase().includes(query))
+        );
+    }
+
+    renderMandiTable(filtered, query);
+}
+
+function renderMandiTable(items, searchQuery) {
+    const content = document.getElementById('mandi-content');
+
+    if (!items || items.length === 0) {
+        if (searchQuery) {
+            content.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="text-muted fs-1 mb-2"><i class="bi bi-search"></i></div>
+                    <h5 class="fw-bold text-light">No crop found matching "${searchQuery}"</h5>
+                    <p class="text-muted small">Try searching with another keyword like Wheat, Soybean, Mustard, Rice, or Chana.</p>
+                    <button class="btn btn-outline-success btn-sm mt-2" onclick="clearCropSearch()">
+                        <i class="bi bi-x-circle me-1"></i> Clear Search Filter
+                    </button>
+                </div>
+            `;
+        } else {
+            content.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="text-muted fs-1 mb-2"><i class="bi bi-inbox"></i></div>
+                    <h5 class="fw-bold text-light">No Mandi Prices Available</h5>
+                    <p class="text-muted small">No crop arrivals recorded for this district today.</p>
+                </div>
+            `;
+        }
+        return;
+    }
+
+    content.innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-dark table-hover align-middle mb-0">
+                <thead class="table-secondary text-uppercase small text-muted">
+                    <tr>
+                        <th class="ps-3 py-3">Crop / Commodity</th>
+                        <th class="py-3">Variety</th>
+                        <th class="py-3">Mandi / Market</th>
+                        <th class="py-3">District</th>
+                        <th class="py-3">State</th>
+                        <th class="text-end py-3 text-success">Min Rate (₹)</th>
+                        <th class="text-end py-3 text-danger">Max Rate (₹)</th>
+                        <th class="text-end py-3 text-warning">Modal Rate (₹/Qtl)</th>
+                        <th class="text-center pe-3 py-3">Arrival Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map(p => `
+                        <tr>
+                            <td class="ps-3 fw-bold text-light">
+                                <span class="me-2">🌾</span>${p.commodity}
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary bg-opacity-25 text-info-emphasis border border-secondary border-opacity-25 fw-normal">
+                                    ${p.variety || 'Common'}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="text-light fw-medium">${p.market}</span>
+                            </td>
+                            <td class="text-muted small">${p.district || '-'}</td>
+                            <td class="text-muted small">${p.state || '-'}</td>
+                            <td class="text-end text-success fw-semibold">₹${Number(p.minPrice || 0).toLocaleString('en-IN')}</td>
+                            <td class="text-end text-danger fw-semibold">₹${Number(p.maxPrice || 0).toLocaleString('en-IN')}</td>
+                            <td class="text-end text-warning fw-bold fs-6">
+                                <span class="badge bg-warning bg-opacity-10 text-warning px-2 py-1 fs-6">
+                                    ₹${Number(p.modalPrice || 0).toLocaleString('en-IN')}
+                                </span>
+                            </td>
+                            <td class="text-center pe-3 text-muted small">${p.arrivalDate || p.lastUpdated || 'Today'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        <div class="p-3 bg-dark border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center small text-muted">
+            <div>Showing <strong class="text-light">${items.length}</strong> crop arrival records</div>
+            <div><i class="bi bi-info-circle me-1"></i>Prices are in Indian Rupees (₹) per Quintal (100 kg)</div>
+        </div>
+    `;
+}
+
+function clearCropSearch() {
+    const input = document.getElementById('crop-search');
+    if (input) {
+        input.value = '';
+        applyClientCropFilter();
+        input.focus();
+    }
+}
+
+// Event Listeners setup
+document.addEventListener('DOMContentLoaded', () => {
+    loadLocations();
+
+    document.getElementById('state-select').addEventListener('change', onStateChanged);
+    document.getElementById('district-select').addEventListener('change', onDistrictChanged);
+
+    // Live instant crop search as the user types
+    const cropSearchInput = document.getElementById('crop-search');
+    cropSearchInput.addEventListener('input', () => {
+        applyClientCropFilter();
+    });
+});
+</script>
+
+<style>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.spin-animation {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+}
+</style>
+{% endblock %}

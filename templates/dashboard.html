@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — VillageConnect{% endblock %}
+
+{% block content %}
+<div class="fade-in-up">
+    <h4 class="fw-bold mb-1">Dashboard</h4>
+    <p class="text-muted small mb-4">Welcome to VillageConnect</p>
+
+    <!-- Stat Cards Row -->
+    <div class="row g-3 mb-4" id="statsRow">
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background: rgba(16,185,129,0.12); color: #10b981;">
+                        <i class="bi bi-megaphone-fill"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value" id="stat-announcements">—</div>
+                        <div class="stat-label">Announcements</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background: rgba(245,158,11,0.12); color: #f59e0b;">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value" id="stat-grievances">—</div>
+                        <div class="stat-label">Grievances</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background: rgba(59,130,246,0.12); color: #3b82f6;">
+                        <i class="bi bi-tools"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value" id="stat-equipment">—</div>
+                        <div class="stat-label">Equipment</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background: rgba(139,92,246,0.12); color: #8b5cf6;">
+                        <i class="bi bi-kanban-fill"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value" id="stat-projects">—</div>
+                        <div class="stat-label">Projects</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Announcements -->
+    <div class="vc-card mb-4">
+        <div class="vc-card-header">
+            <i class="bi bi-megaphone-fill text-accent"></i> Recent Announcements
+        </div>
+        <div id="dashboard-announcements">
+            <div class="vc-loading"><div class="vc-spinner"></div></div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-3">
+        <div class="col-md-4">
+            <a href="/grievances/new/" class="vc-card d-block text-decoration-none h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background: rgba(245,158,11,0.12); color: #f59e0b;">
+                        <i class="bi bi-plus-circle-fill"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold">File Grievance</div>
+                        <div class="small text-muted">Report an issue</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4">
+            <a href="/equipment/" class="vc-card d-block text-decoration-none h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background: rgba(59,130,246,0.12); color: #3b82f6;">
+                        <i class="bi bi-tools"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold">Browse Equipment</div>
+                        <div class="small text-muted">Rent farm equipment</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4">
+            <a href="/mandi-prices/" class="vc-card d-block text-decoration-none h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background: rgba(16,185,129,0.12); color: #10b981;">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold">Mandi Prices</div>
+                        <div class="small text-muted">Live crop market rates</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const user = Auth.getUser();
+    if (!user || !user.villageId) return;
+    const vid = user.villageId;
+
+    // Fetch announcements
+    try {
+        const resp = await apiFetch(`/api/announcements/village/${vid}`);
+        if (resp.ok) {
+            const data = await resp.json();
+            document.getElementById('stat-announcements').textContent = data.length;
+            const container = document.getElementById('dashboard-announcements');
+            if (data.length === 0) {
+                container.innerHTML = '<p class="text-muted small">No announcements yet.</p>';
+            } else {
+                container.innerHTML = data.slice(0, 5).map(a => `
+                    <div class="d-flex justify-content-between align-items-start border-bottom border-secondary py-2">
+                        <div>
+                            <div class="fw-semibold">${a.title}</div>
+                            <div class="small text-muted">${a.message.substring(0, 100)}${a.message.length > 100 ? '...' : ''}</div>
+                        </div>
+                        <span class="badge badge-priority-${(a.priority||'normal').toLowerCase()} ms-2">${a.priority}</span>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch {}
+
+    // Fetch grievance count
+    try {
+        const resp = await apiFetch(`/api/grievances/my`);
+        if (resp.ok) { const d = await resp.json(); document.getElementById('stat-grievances').textContent = d.length; }
+    } catch {}
+
+    // Fetch equipment count
+    try {
+        const resp = await apiFetch(`/api/agritech/equipments/village/${vid}`);
+        if (resp.ok) { const d = await resp.json(); document.getElementById('stat-equipment').textContent = d.length; }
+    } catch {}
+
+    // Fetch projects count
+    try {
+        const resp = await apiFetch(`/api/finance/projects/village/${vid}`);
+        if (resp.ok) { const d = await resp.json(); document.getElementById('stat-projects').textContent = d.length; }
+    } catch {}
+});
+</script>
+{% endblock %}

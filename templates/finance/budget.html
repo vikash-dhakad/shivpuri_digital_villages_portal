@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}Panchayat Budget — VillageConnect{% endblock %}
+{% block content %}
+<div class="fade-in-up">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1"><i class="bi bi-wallet2 text-accent me-2"></i>Panchayat Budget</h4>
+            <p class="text-muted small mb-0">Gram Panchayat ka direct budget hisab-kitab</p>
+        </div>
+        <button class="btn btn-vc admin-only" data-bs-toggle="modal" data-bs-target="#budgetModal"><i class="bi bi-plus-lg me-1"></i> Add / Set Budget</button>
+    </div>
+
+    <div id="budget-content">
+        <div class="vc-loading"><div class="vc-spinner"></div></div>
+    </div>
+</div>
+
+<!-- Modal to Set/Add Budget -->
+<div class="modal fade" id="budgetModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background:var(--vc-bg-card);border-color:var(--vc-border);">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-cash-stack text-accent me-2"></i>Add Budget Amount</h5>
+                <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Amount to Add in Budget (₹)</label>
+                    <input type="number" class="form-control vc-form-control form-control-lg" id="bAmount" step="1" placeholder="e.g. 50000">
+                    <div class="form-text text-muted">Ye rashi seedhe Panchayat Budget me add ho jayegi.</div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-vc" onclick="allocateBudget()"><i class="bi bi-check-lg me-1"></i> Add to Budget</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const user = Auth.getUser();
+
+document.addEventListener('DOMContentLoaded', loadBudget);
+
+async function loadBudget() {
+    const container = document.getElementById('budget-content');
+    container.innerHTML = '<div class="vc-loading"><div class="vc-spinner"></div></div>';
+
+    try {
+        const r = await apiFetch(`/api/finance/budget/village/${user.villageId}`);
+        if (r.ok) {
+            const b = await r.json();
+            const total = Number(b.totalAmount || 0);
+            const spent = Number(b.spentAmount || 0);
+            const remaining = Number(b.remainingAmount || (total - spent));
+
+            container.innerHTML = `
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="stat-card border-top border-3 border-success">
+                        <div class="stat-label mb-1">Panchayat Budget (कुल बजट)</div>
+                        <div class="stat-value text-accent fs-3">₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        <div class="small text-muted mt-2">
+                            <i class="bi bi-arrow-down-circle text-success me-1"></i>Equipment rent seedhe yahan add hota hai
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card border-top border-3 border-warning">
+                        <div class="stat-label mb-1">Total Kharcha (प्रोजेक्ट्स का खर्च)</div>
+                        <div class="stat-value text-warning fs-3">₹${spent.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        <div class="small text-muted mt-2">
+                            <i class="bi bi-arrow-up-circle text-danger me-1"></i>Project kharcha yahan se deduct hota hai
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card border-top border-3 border-info">
+                        <div class="stat-label mb-1">Remaining Balance (बचा हुआ बजट)</div>
+                        <div class="stat-value text-success fs-3">₹${remaining.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        <div class="small text-muted mt-2">
+                            <i class="bi bi-check-circle text-success me-1"></i>Net bacha hua budget
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card vc-card">
+                <div class="card-body">
+                    <h6 class="fw-bold text-white mb-2"><i class="bi bi-info-circle text-accent me-2"></i>Kaise Kaam Karta Hai?</h6>
+                    <ul class="text-muted small ps-3 mb-0">
+                        <li class="mb-1"><strong>Equipment Rent:</strong> Jab koi bhi person Panchayat Admin ke equipment ko book karega, to rent ka pura paisa <strong>direct Panchayat Budget me add</strong> ho jayega.</li>
+                        <li><strong>Project Kharcha:</strong> Gaon ke kisi bhi vikas project me jitna kharcha aayega, wo amount <strong>direct budget se kam</strong> ho jayega.</li>
+                    </ul>
+                </div>
+            </div>`;
+        } else {
+            container.innerHTML = `
+            <div class="vc-empty">
+                <i class="bi bi-wallet2 text-muted fs-1 mb-2"></i>
+                <h6>Abhi koi budget add nahi hua hai</h6>
+                <p class="text-muted small">Panchayat Admin button par click karke initial budget add kar sakta hai.</p>
+                <button class="btn btn-vc btn-sm admin-only" data-bs-toggle="modal" data-bs-target="#budgetModal">
+                    <i class="bi bi-plus-lg me-1"></i> Add Budget Now
+                </button>
+            </div>`;
+        }
+    } catch (err) {
+        container.innerHTML = '<div class="vc-empty"><p class="text-danger">Error loading budget.</p></div>';
+    }
+}
+
+async function allocateBudget() {
+    const amount = document.getElementById('bAmount').value.trim();
+    if (!amount || Number(amount) <= 0) {
+        showToast('Please enter a valid amount', 'warning');
+        return;
+    }
+
+    const body = { fiscalYear: '2024-2025', totalAmount: amount };
+    try {
+        const r = await apiFetch('/api/finance/budget/', { method: 'POST', body: JSON.stringify(body) });
+        if (r.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('budgetModal')).hide();
+            showToast('Budget me rashi add ho gayi!', 'success');
+            document.getElementById('bAmount').value = '';
+            loadBudget();
+        } else {
+            const d = await r.json();
+            showToast(d.error || 'Failed to add budget', 'danger');
+        }
+    } catch {
+        showToast('Server error while adding budget', 'danger');
+    }
+}
+</script>
+{% endblock %}

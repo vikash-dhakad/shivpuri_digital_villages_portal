@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Announcements — VillageConnect{% endblock %}
+{% block content %}
+<div class="fade-in-up">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">Announcements</h4>
+            <p class="text-muted small mb-0">Village-wide announcements</p>
+        </div>
+        <button class="btn btn-vc admin-only" data-bs-toggle="modal" data-bs-target="#announcementModal">
+            <i class="bi bi-plus-lg me-1"></i> New Announcement
+        </button>
+    </div>
+
+    <div id="announcements-list">
+        <div class="vc-loading"><div class="vc-spinner"></div></div>
+    </div>
+</div>
+
+<!-- Create Modal -->
+<div class="modal fade" id="announcementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background: var(--vc-bg-card); border-color: var(--vc-border);">
+            <div class="modal-header border-secondary"><h5 class="modal-title">New Announcement</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3"><label class="form-label">Title</label><input type="text" class="form-control vc-form-control" id="annTitle"></div>
+                <div class="mb-3"><label class="form-label">Message</label><textarea class="form-control vc-form-control" id="annMessage" rows="4"></textarea></div>
+                <div class="mb-3"><label class="form-label">Priority</label>
+                    <select class="form-select vc-form-select" id="annPriority">
+                        <option value="NORMAL">Normal</option><option value="IMPORTANT">Important</option><option value="URGENT">Urgent</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-vc" onclick="createAnnouncement()">Post Announcement</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', loadAnnouncements);
+
+async function loadAnnouncements() {
+    const user = Auth.getUser();
+    if (!user?.villageId) return;
+    try {
+        const resp = await apiFetch(`/api/announcements/village/${user.villageId}`);
+        const data = await resp.json();
+        const container = document.getElementById('announcements-list');
+        if (!data.length) { container.innerHTML = '<div class="vc-empty"><i class="bi bi-megaphone"></i><p>No announcements yet</p></div>'; return; }
+        container.innerHTML = data.map(a => `
+            <div class="vc-card mb-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="fw-bold mb-1">${a.title}</h6>
+                        <p class="mb-2">${a.message}</p>
+                        <small class="text-muted">By ${a.createdByName} (${a.createdByRole.replace(/_/g,' ')}) · ${formatDate(a.createdAt)}</small>
+                    </div>
+                    <span class="badge badge-priority-${(a.priority||'normal').toLowerCase()}">${a.priority}</span>
+                </div>
+            </div>
+        `).join('');
+    } catch {}
+}
+
+async function createAnnouncement() {
+    const body = { title: document.getElementById('annTitle').value, message: document.getElementById('annMessage').value, priority: document.getElementById('annPriority').value };
+    try {
+        const resp = await apiFetch('/api/announcements/', { method: 'POST', body: JSON.stringify(body) });
+        if (resp.ok) { bootstrap.Modal.getInstance(document.getElementById('announcementModal')).hide(); showToast('Announcement posted!'); loadAnnouncements(); }
+        else { const d = await resp.json(); showToast(d.error || 'Error', 'danger'); }
+    } catch { showToast('Network error', 'danger'); }
+}
+</script>
+{% endblock %}
