@@ -108,14 +108,14 @@ A full-stack Rural Governance & Digital Village platform built with **Python, Dj
 ```
 villageconnect_django/
 ├── accounts/          # User auth, JWT, OTP service, Village models
-├── agritech/          # Farm equipment rentals, Mandi prices, Agri tasks
+├── agritech/          # Farm equipment rentals, Mandi prices, Farm tools
 ├── announcements/     # Village news, notices & circulars
 ├── finance/           # Panchayat budgets & development projects
 ├── grievances/        # Complaints, photo attachments, ratings & escalations
 ├── notifications/     # In-app notifications & alert broadcasts
 ├── static/            # CSS, JavaScript (auth.js, main.js), icons
 ├── templates/         # Django Bootstrap 5 HTML templates
-├── villageconnect/    # Django core configuration, settings, urls, celery
+├── villageconnect/    # Django core configuration, settings, urls, wsgi
 ├── manage.py
 ├── requirements.txt
 └── .env.example
