@@ -20,12 +20,12 @@ A full-stack Rural Governance & Digital Village platform built with **Python, Dj
 - Gramvasis can lodge complaints with photo attachments and categorisation (Water, Road, Electricity, Sanitation, etc.).
 - Real-time status tracking (`PENDING`, `IN_PROGRESS`, `RESOLVED`, `REJECTED`).
 - Citizen Feedback & 5-Star Rating upon resolution.
-- Celery-driven automated escalation for grievances pending > 7 days.
+- Automated escalation for grievances pending > 7 days.
 
 ### 4. 🚜 AgriTech & Farm Equipment Sharing
 - Farmers can list, discover, and rent agricultural machinery (Tractors, Harvesters, Threshers).
 - Real-time hourly cost calculation with live rent deduction and Panchayat revenue addition.
-- Automated equipment release scheduler when rental duration expires.
+- Automated equipment release when rental duration expires.
 - **Live Mandi Prices**: Real-time commodity price tracking via data.gov.in Agmarknet API with state/district filters.
 
 ### 5. 💰 Transparent Panchayat Finance & Projects
@@ -38,7 +38,6 @@ A full-stack Rural Governance & Digital Village platform built with **Python, Dj
 
 - **Backend**: Python 3.12, Django 5.1, Django REST Framework (DRF), SimpleJWT
 - **Database**: MySQL 8.4 (InnoDB, utf8mb4)
-- **Background Tasks**: Celery, Redis / Memory Broker
 - **Frontend**: HTML5, CSS3, JavaScript (Fetch API), Bootstrap 5.3 (Dark Theme)
 - **SMS Gateway**: Fast2SMS API
 
@@ -54,8 +53,8 @@ A full-stack Rural Governance & Digital Village platform built with **Python, Dj
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/vikash-dhakad/shivpuri-digital-village-portal.git
-   cd shivpuri-digital-village-portal
+   git clone https://github.com/vikash-dhakad/shivpuri_digital_villages_portal.git
+   cd shivpuri_digital_villages_portal
    ```
 
 2. **Create and activate a virtual environment:**
